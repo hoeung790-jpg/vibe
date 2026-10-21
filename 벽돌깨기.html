@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>벽돌깨기</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Jua&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --paper:#000; --grid:rgba(255,184,174,.28); --ink:#fff; --muted:#a9b0ff; --ball:#ffe600; --wall:#2121ff; --panel:rgba(0,0,0,.92);
+  --r0:#ff0000; --r1:#ffb8ff; --r2:#00ffff; --r3:#ffb852; --r4:#4a6bff; --r5:#dedeff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--paper);
+  background-image:radial-gradient(circle,var(--grid) 2px,transparent 2.5px);
+  background-size:28px 28px;
+  color:var(--ink);
+  font-family:'Press Start 2P','Jua','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 12px;gap:10px;
+  -webkit-user-select:none;user-select:none;
+}
+.hud{
+  width:min(100%,calc((100dvh - 110px)*.75));
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:20px;
+}
+.hud small{font-size:13px;color:var(--muted);margin-right:4px}
+.wx{flex:1;min-width:0;text-align:center;font-size:12px;line-height:1.25;color:var(--ball);padding:0 6px}
+.hud b{font-weight:400;font-size:16px}
+#lives{letter-spacing:2px;color:var(--ball);font-size:24px}
+.stage{position:relative;width:min(100%,calc((100dvh - 110px)*.75))}
+canvas{
+  display:block;width:100%;height:auto;aspect-ratio:3/4;
+  background:var(--paper);
+  border:3px solid var(--wall);border-radius:14px;box-shadow:0 0 14px var(--wall),inset 0 0 14px rgba(33,33,255,.45);
+  touch-action:none;
+}
+#ov{
+  position:absolute;inset:3px;border-radius:11px;
+  background:var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;
+}
+#ov.hide{display:none}
+#ov h2{margin:0;font-size:32px;font-weight:400;color:var(--ball)}
+#ov p{margin:0;color:var(--muted);font-size:17px;line-height:1.5}
+#ov .big{font-size:22px;color:var(--ink)}
+#ov .wmsg{color:var(--ball);font-size:15px}
+button{
+  font:inherit;font-size:24px;color:#000;background:var(--ball);
+  border:0;border-radius:12px;padding:10px 38px;cursor:pointer;margin-top:6px;
+  box-shadow:0 4px 0 var(--wall);
+}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--wall)}
+button:focus-visible{outline:3px solid var(--ball);outline-offset:3px}
+</style>
+</head>
+<body>
+<div class="hud">
+  <div><small>점수</small><b id="score">0</b></div>
+  <div class="wx" id="wx">날씨 불러오는 중…</div>
+  <div><small>최고</small><b id="best">0</b></div>
+  <div id="lives" aria-label="남은 생명">●●●</div>
+</div>
+<div class="stage">
+  <canvas id="c" width="480" height="640"></canvas>
+  <div id="ov">
+    <h2 id="ovt">벽돌깨기</h2>
+    <p id="ovp">← → 키나 화면 드래그로<br>패들을 움직여요</p>
+    <p id="wmsg" class="wmsg">날씨 확인 중…</p>
+    <button id="go">시작</button>
+  </div>
+</div>
+
+<script>
+(function(){
+const W=480,H=640;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const COLS=8,ROWS=6,BW=48,BH=20,GAP=6,OX=(W-(COLS*BW+(COLS-1)*GAP))/2,OY=72;
+const PH=14,PY=H-44,BASE=5.2,MAXV=9.5,PW=96,PBIG=150,PTIME=600;
+
+let C={};
+function readColors(){
+  const s=getComputedStyle(document.documentElement),g=n=>s.getPropertyValue(n).trim();
+  C={ink:g('--ink'),wall:g('--wall'),ball:g('--ball'),muted:g('--muted'),rows:[0,1,2,3,4,5].map(i=>g('--r'+i))};
+}
+readColors();
+
+let state='idle',score=0,lives=3,level=1,speed=BASE,serve=0,best=0,padT=0,banner=0,bannerTxt='';
+try{best=+localStorage.getItem('brick-best')||0;}catch(e){}
+function saveBest(){try{localStorage.setItem('brick-best',best);}catch(e){}}
+/* 기온별 속도 배율과 안내 메시지 (문구는 여기서 고칠 수 있어요) */
+let wf=1;
+const WX_MSG={fast:'더운 날씨(25°C 이상)라 공이 빠르게 날아요!',slow:'추운 날씨(10°C 미만)라 공이 느리게 날아요.',normal:'공 속도는 보통이에요.'};
+let bricks=[],balls=[],paddle={w:PW,x:(W-PW)/2};
+const keys={left:false,right:false};
+
+/* 효과음 */
+let ac=null;
+function initAudio(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();}catch(e){}}
+function tone(f,d,w,type,v){
+  if(!ac)return;
+  try{
+    const t=ac.currentTime+(w||0),o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(v||.2,t+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02);
+  }catch(e){}
+}
+const ding=()=>{tone(988,.1,0);tone(1568,.22,.07);};
+
+function build(){
+  bricks=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const hard=r===0||(level>=2&&r===1&&c%2===0);
+    bricks.push({x:OX+c*(BW+GAP),y:OY+r*(BH+GAP),r,alive:true,hard,hp:hard?2:1,item:null});
+  }
+  const pool=bricks.filter(b=>!b.hard);
+  for(let i=pool.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[pool[i],pool[j]]=[pool[j],pool[i]];}
+  pool.slice(0,level>=2?5:4).forEach((b,i)=>b.item=i%2?'m':'p');
+}
+function resetBall(){
+  balls=[{x:paddle.x+paddle.w/2,y:PY-10,vx:0,vy:0,r:9}];serve=60;
+}
+function launch(){
+  const a=(Math.random()*50-25)*Math.PI/180,b=balls[0];
+  b.vx=speed*Math.sin(a);b.vy=-speed*Math.cos(a);
+}
+function say(t){bannerTxt=t;banner=90;}
+function applyItem(t){
+  tone(784,.08,0);tone(1047,.08,.08);tone(1568,.18,.16);
+  if(t==='p'){padT=PTIME;say('패들 커짐!');}
+  else{
+    const s=balls[0];
+    if(s&&balls.length<4){
+      const a=Math.atan2(s.vy,s.vx)+0.5;
+      balls.push({x:s.x,y:s.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:9});
+    }
+    say('공 2개!');
+  }
+}
+function hud(){
+  $('score').textContent=score;
+  $('best').textContent=best;
+  $('lives').textContent='●'.repeat(Math.max(lives,0))+'○'.repeat(Math.max(3-lives,0));
+  $('lives').setAttribute('aria-label','남은 생명 '+Math.max(lives,0)+'개');
+}
+function start(){
+  initAudio();
+  score=0;lives=3;level=1;speed=BASE*wf;padT=0;banner=0;
+  paddle.w=PW;paddle.x=(W-PW)/2;
+  build();resetBall();hud();
+  state='play';$('ov').classList.add('hide');
+}
+function over(){
+  state='over';
+  if(score>best){best=score;}
+  saveBest();hud();
+  $('ovt').textContent='게임 오버';
+  $('ovp').innerHTML='<span class="big">'+score+'점</span><br>'+(score>0&&score>=best?'최고 기록이에요!':'최고 기록 '+best+'점');
+  $('go').textContent='다시 시작';
+  $('ov').classList.remove('hide');
+  $('go').focus({preventScroll:true});
+}
+
+function update(k){
+  if(keys.left)paddle.x-=7.5*k;
+  if(keys.right)paddle.x+=7.5*k;
+  if(padT>0)padT-=k;
+  const old=paddle.w,tw=padT>0?PBIG:PW;
+  paddle.w+=(tw-paddle.w)*Math.min(.2*k,1);
+  paddle.x-=(paddle.w-old)/2;
+  paddle.x=Math.max(0,Math.min(W-paddle.w,paddle.x));
+  if(banner>0)banner-=k;
+
+  if(serve>0){
+    const b=balls[0];
+    b.x=paddle.x+paddle.w/2;b.y=PY-b.r-1;
+    serve-=k;if(serve<=0)launch();
+    return;
+  }
+  for(let i=balls.length-1;i>=0;i--){
+    const ball=balls[i],r=ball.r;
+    ball.x+=ball.vx*k;ball.y+=ball.vy*k;
+    if(ball.x<r){ball.x=r;ball.vx=Math.abs(ball.vx);}
+    if(ball.x>W-r){ball.x=W-r;ball.vx=-Math.abs(ball.vx);}
+    if(ball.y<r){ball.y=r;ball.vy=Math.abs(ball.vy);}
+
+    if(ball.vy>0&&ball.y+r>=PY&&ball.y+r<=PY+PH+10&&ball.x>=paddle.x-r&&ball.x<=paddle.x+paddle.w+r){
+      const h=Math.max(-1,Math.min(1,(ball.x-(paddle.x+paddle.w/2))/(paddle.w/2)));
+      const a=h*60*Math.PI/180;
+      ball.vx=speed*Math.sin(a);ball.vy=-speed*Math.cos(a);
+      ball.y=PY-r;
+    }
+
+    for(const b of bricks){
+      if(!b.alive)continue;
+      const cx=Math.max(b.x,Math.min(ball.x,b.x+BW)),cy=Math.max(b.y,Math.min(ball.y,b.y+BH));
+      const dx=ball.x-cx,dy=ball.y-cy;
+      if(dx*dx+dy*dy<r*r){
+        if(b.hp>1){b.hp--;tone(300,.09,0,'square',.07);}
+        else{
+          b.alive=false;score+=10;ding();
+          if(score>best){best=score;saveBest();}
+          if(b.item)applyItem(b.item);
+        }
+        speed=Math.min(speed+0.05,MAXV*wf);
+        if(Math.abs(dx)>Math.abs(dy))ball.vx=(dx>0?1:-1)*Math.abs(ball.vx);
+        else ball.vy=(dy>0?1:-1)*Math.abs(ball.vy)||-ball.vy;
+        const m=Math.hypot(ball.vx,ball.vy)||1;
+        ball.vx=ball.vx/m*speed;ball.vy=ball.vy/m*speed;
+        hud();
+        break;
+      }
+    }
+    if(ball.y-r>H)balls.splice(i,1);
+  }
+
+  if(!bricks.some(b=>b.alive)){
+    level++;speed=Math.min((BASE+(level-1)*0.9)*wf,MAXV*wf);
+    build();resetBall();
+    say('레벨 '+level+' · 더 빨라져요!');
+    tone(523,.1,0);tone(659,.1,.1);tone(784,.1,.2);tone(1047,.25,.3);
+    return;
+  }
+  if(!balls.length){
+    lives--;padT=0;hud();
+    tone(300,.25,0,'sawtooth',.1);tone(200,.35,.18,'sawtooth',.1);
+    if(lives<=0)over();else resetBall();
+  }
+}
+
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const blink=performance.now()%700<350;
+  for(const b of bricks){
+    if(!b.alive)continue;
+    const x=b.x,y=b.y,w=BW,h=BH,tw=w/4;
+    if(b.hard){
+      rr(x,y,w,h,4);ctx.fillStyle=b.hp>1?'#aab0c8':'#6b7090';ctx.fill();
+      ctx.lineWidth=3;ctx.strokeStyle=C.wall;ctx.stroke();
+      if(b.hp<2){
+        ctx.lineWidth=1.5;ctx.strokeStyle='#000';ctx.beginPath();
+        ctx.moveTo(x+w*.4,y+2);ctx.lineTo(x+w*.52,y+h/2);ctx.lineTo(x+w*.45,y+h-2);ctx.stroke();
+      }
+    }else if(b.item){
+      rr(x,y,w,h,6);ctx.fillStyle='#1a1400';ctx.fill();
+      ctx.lineWidth=2;ctx.strokeStyle=blink?C.ball:'#8a7a00';ctx.stroke();
+      ctx.font="bold 14px sans-serif";ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle=C.ball;ctx.fillText(b.item==='p'?'↔':'×2',x+w/2,y+h/2+1);
+      ctx.textBaseline='alphabetic';
+    }else{
+      ctx.beginPath();ctx.moveTo(x,y+h);ctx.lineTo(x,y+h*.55);
+      ctx.ellipse(x+w/2,y+h*.55,w/2,h*.55,0,Math.PI,Math.PI*2);
+      ctx.lineTo(x+w,y+h);
+      for(let i=1;i<=4;i++){const x2=x+w-i*tw;ctx.lineTo(x2+tw/2,y+h-5);ctx.lineTo(x2,y+h);}
+      ctx.closePath();ctx.fillStyle=C.rows[b.r];ctx.fill();
+      for(const ex of [.35,.65]){
+        ctx.beginPath();ctx.arc(x+w*ex,y+h*.42,3.8,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+        ctx.beginPath();ctx.arc(x+w*ex+1.2,y+h*.45,1.9,0,Math.PI*2);ctx.fillStyle='#1a1aff';ctx.fill();
+      }
+    }
+  }
+  rr(paddle.x,PY,paddle.w,PH,7);ctx.fillStyle=C.wall;ctx.fill();
+  const m=0.12+0.38*Math.abs(Math.sin(performance.now()/110));
+  for(const ball of balls){
+    const ang=(ball.vx===0&&ball.vy===0)?-Math.PI/2:Math.atan2(ball.vy,ball.vx);
+    ctx.beginPath();ctx.moveTo(ball.x,ball.y);
+    ctx.arc(ball.x,ball.y,ball.r,ang+m,ang-m+Math.PI*2);ctx.closePath();
+    ctx.fillStyle=C.ball;ctx.fill();
+  }
+  ctx.font="22px 'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+  ctx.textAlign='center';
+  if(state==='play'){
+    ctx.fillStyle=C.muted;ctx.fillText('레벨 '+level,W/2,38);
+    ctx.fillStyle=C.ball;
+    if(serve>0&&banner<=0)ctx.fillText('준비!',W/2,H*0.62);
+    if(banner>0){ctx.font="28px 'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif";ctx.fillText(bannerTxt,W/2,H*0.55);}
+  }
+}
+
+let last=0;
+function loop(t){
+  const k=Math.min((t-last)/16.667,2.5)||1;last=t;
+  if(state==='play')update(k);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'){keys.left=true;e.preventDefault();}
+  else if(e.key==='ArrowRight'){keys.right=true;e.preventDefault();}
+});
+addEventListener('keyup',e=>{
+  if(e.key==='ArrowLeft')keys.left=false;
+  if(e.key==='ArrowRight')keys.right=false;
+});
+addEventListener('blur',()=>{keys.left=keys.right=false;});
+function pointer(e){
+  if(state!=='play')return;
+  const rc=cv.getBoundingClientRect();
+  const x=(e.clientX-rc.left)/rc.width*W;
+  paddle.x=Math.max(0,Math.min(W-paddle.w,x-paddle.w/2));
+}
+cv.addEventListener('pointerdown',pointer);
+cv.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||e.buttons)pointer(e);});
+$('go').addEventListener('click',start);
+
+build();resetBall();hud();
+requestAnimationFrame(loop);
+
+/* 서울 현재 기온 (Open-Meteo, API 키 불필요) — 실패해도 게임에는 영향 없음 */
+(async function(){
+  const el=$('wx'),fail='날씨 정보를 불러올 수 없어요';
+  try{
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),6000);
+    const res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978&current=temperature_2m&timezone=Asia%2FSeoul',{signal:ctl.signal});
+    clearTimeout(to);
+    if(!res.ok)throw new Error('http '+res.status);
+    const t=(await res.json()).current.temperature_2m;
+    if(typeof t!=='number')throw new Error('no data');
+    const f=t>=25?'fast':t<10?'slow':'normal';
+    wf=f==='fast'?1.25:f==='slow'?0.75:1;
+    $('wmsg').textContent='오늘 서울 '+Math.round(t)+'°C · '+WX_MSG[f];
+    el.textContent='오늘 서울 '+Math.round(t)+'°C';
+  }catch(e){el.textContent=fail;$('wmsg').textContent='날씨를 못 불러와서 '+WX_MSG.normal;}
+})();
+})();
+</script>
+</body>
+</html>
