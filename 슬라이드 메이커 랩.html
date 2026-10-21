@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>슬라이드 메이커 랩</title>
+<style>
+:root{--bg:#f3f5fb;--sf:#fff;--tx:#18202e;--mu:#667085;--bd:#dde2ee;--ac:#5b5bf0;--ac2:#e9e9ff;--er:#d92d3a;--wn:#c26a00;--in:#2a6fdb;--ok:#1f8a45;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10131c;--sf:#1a1f2d;--tx:#eceff6;--mu:#9aa3b8;--bd:#2c3347;--ac:#8c8cff;--ac2:#27294a;--er:#ff7b84;--wn:#f2a24a;--in:#78adff;--ok:#6fd592;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10131c;--sf:#1a1f2d;--tx:#eceff6;--mu:#9aa3b8;--bd:#2c3347;--ac:#8c8cff;--ac2:#27294a;--er:#ff7b84;--wn:#f2a24a;--in:#78adff;--ok:#6fd592;color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:"Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;line-height:1.5;font-size:15px}
+header{position:sticky;top:0;z-index:5;background:var(--sf);border-bottom:1px solid var(--bd);padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.logo{font-weight:800;font-size:1.1rem}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.sb{border:0;background:transparent;color:var(--mu);padding:6px 10px;border-radius:999px;font:inherit;cursor:pointer}
+.sb.on{background:var(--ac);color:#fff;font-weight:700}
+.sb.done{color:var(--ac)}
+main{max-width:1200px;margin:0 auto;padding:18px 14px}
+h1{font-size:1.7rem;margin:0 0 6px}h2{font-size:1.05rem;margin:14px 0 8px}
+.mu{color:var(--mu)}
+textarea,input,select{width:100%;font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:10px}
+textarea{min-height:230px;resize:vertical}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;padding:8px 14px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.pri{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.msg{color:var(--er);min-height:1.4em;margin:6px 0 0}
+.cards{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.pc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.pc b{color:var(--ac)}.pc p{margin:4px 0 8px;font-size:.9rem}
+.themes{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.th-b{padding:6px;text-align:left}.th-b.on{border:2px solid var(--ac);background:var(--ac2)}
+.ed{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:900px){.ed{grid-template-columns:150px 1fr 310px}}
+.thumbs{display:flex;gap:8px;overflow-x:auto}
+@media(min-width:900px){.thumbs{flex-direction:column;max-height:70vh;overflow-y:auto}}
+.tb{flex:0 0 130px;padding:4px;text-align:left;position:relative}
+.tb.on{border:2px solid var(--ac);background:var(--ac2)}
+.tb i{position:absolute;left:8px;top:6px;font-style:normal;font-size:.7rem;background:var(--tx);color:var(--sf);border-radius:6px;padding:0 5px;z-index:2}
+.panel{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.panel label{display:block;font-weight:700;margin:10px 0 4px;font-size:.9rem}
+.pill{padding:5px 11px;border-radius:999px}.pill.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.pill.rec{border:1px dashed var(--ac)}
+.chk{list-style:none;margin:0;padding:0}
+.chk li{padding:5px 8px;margin-bottom:5px;border-left:4px solid var(--bd);background:var(--bg);border-radius:6px;font-size:.88rem}
+.chk .error{border-color:var(--er)}.chk .warn{border-color:var(--wn)}.chk .info{border-color:var(--in)}.chk .ok{border-color:var(--ok)}
+.pass{color:var(--ok)}.fail{color:var(--er);font-weight:700}
+/* 슬라이드 (테마 변수) */
+.th0{--sb:#fff;--st:#14262b;--sa:#0b8a84;--sa2:#d9f2f0}
+.th1{--sb:#14213d;--st:#f5f1e8;--sa:#fca311;--sa2:#2a3b66}
+.th2{--sb:#fff3b8;--st:#1c1c1c;--sa:#e4572e;--sa2:#ffe07a}
+.th3{--sb:#1f3d2b;--st:#eef5ea;--sa:#8fd694;--sa2:#2f5a40}
+.slide{width:100%;aspect-ratio:16/9;background:var(--sb);color:var(--st);border-radius:10px;padding:5% 6%;display:flex;flex-direction:column;gap:3%;overflow:hidden;container-type:inline-size;box-shadow:0 2px 10px #0002}
+.slide h3{margin:0;font-size:5.6cqw;line-height:1.25;border-left:1cqw solid var(--sa);padding-left:2cqw}
+.slide p,.slide li,.slide small{margin:0;font-size:3.3cqw}
+.slide ul{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:1.2cqw}
+.slide .em{background:var(--sa2);border-left:1cqw solid var(--sa);padding:1cqw 2cqw;font-weight:700;font-size:3.8cqw;border-radius:0 6px 6px 0}
+.slide .big{font-size:17cqw;font-weight:800;color:var(--sa);line-height:1}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:3cqw;flex:1}
+.cols div{background:var(--sa2);border-radius:8px;padding:2cqw 2.5cqw;font-size:3.3cqw}
+.cols b{display:block;color:var(--sa)}
+.flow{display:flex;gap:1.5cqw;flex:1;align-items:stretch}
+.st{flex:1;background:var(--sa2);border-radius:8px;padding:2cqw;font-size:3cqw}.st b{display:block;color:var(--sa)}
+.arr{align-self:center;color:var(--sa);font-size:3.5cqw}
+.img{flex:1;border:.5cqw dashed var(--sa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:3cqw;opacity:.8}
+.pl{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:12px}
+.cut{display:block;width:100%;border:1px dashed var(--bd);background:transparent;color:var(--mu);padding:1px;font-size:.75rem;margin:3px 0}.cut:hover{color:var(--ac);border-color:var(--ac)}
+.why{font-size:.8rem;color:var(--mu);margin:0 0 6px}.sn{margin:0;font-size:.9rem}
+.rl{display:block;margin:10px 0 4px}.rl input[type=number]{display:inline-block;padding:4px 6px}.kwg{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}.kwg label{font-size:.85rem}summary{cursor:pointer}
+.ai{margin:12px 0;padding:10px;border:1px dashed var(--ac);border-radius:10px}.aib{background:var(--ac2);border-radius:8px;padding:8px;margin-top:8px}.aib ul{margin:4px 0;padding-left:1.2em}
+.slide .cv{flex:1;display:flex;flex-direction:column;justify-content:center;gap:3cqw}.slide .cv h3{font-size:8cqw;border-left:0;padding:0}.slide .cv p{font-size:4cqw;color:var(--sa);font-weight:700}
+</style>
+</head>
+<body>
+<div id="app" class="th0">
+<header>
+  <span class="logo">🧩 슬라이드 메이커 랩</span>
+  <nav class="steps" id="stepper" aria-label="단계"></nav>
+</header>
+<main>
+
+<section class="step" id="s1">
+  <h1>발표 대본을 붙여 넣어 보세요</h1>
+  <p class="mu">대본을 문장 단위로 읽고, 내용이 바뀌는 곳에서 슬라이드를 나눕니다. 엔터를 어디에 쳤는지는 상관없어요. 나누는 기준은 모두 규칙(키워드·길이)이며 AI가 분석한 결과가 아닙니다. 4단계의 「AI 도움」은 직접 눌렀을 때만 작동하고, 그 결과에는 ‘AI 제안’이라고 표시돼요.</p>
+  <textarea id="script" placeholder="여기에 발표 대본을 붙여 넣으세요."></textarea>
+  <details class="pc" style="margin-top:12px" open><summary><b>나누기 기준표</b> <span class="mu">켜고 끄거나 숫자를 바꿔서 나만의 방식으로 만들 수 있어요</span></summary>
+  <p class="why">원칙: 슬라이드 한 장에는 청중이 기억할 메시지를 하나만 담습니다. 문장을 순서대로 읽다가 아래 기준에 걸리면 새 슬라이드를 시작해요.</p>
+  <label class="rl"><input type="checkbox" id="rSig" checked style="width:auto"> ① 신호어로 시작하면 나누기 <span class="mu">(첫째, 예를 들어, 결론적으로 …)</span></label>
+  <input id="rMySig" placeholder="나만의 신호어 (쉼표로 구분) 예: 정리하면, 한 가지 더">
+  <label class="rl"><input type="checkbox" id="rType" checked style="width:auto"> ② 역할(주장·근거·사례·수치·비교·과정·결론)이 바뀌면 나누기</label>
+  <label class="rl"><input type="checkbox" id="rLen" checked style="width:auto"> ③ 말하는 시간이 길어지면 나누기: 한 장 최대 <input id="rSec" type="number" min="10" max="180" value="45" style="width:68px">초, 문장 <input id="rSn" type="number" min="1" max="12" value="5" style="width:58px">개</label>
+  <label class="rl"><input type="checkbox" id="rMin" checked style="width:auto"> ④ 너무 짧은 장(<input id="rMinC" type="number" min="0" value="30" style="width:62px">자 미만)은 앞 장과 합치기</label>
+  <div class="why" style="margin-top:8px">⑤ 나만의 유형 키워드 (쉼표로 구분, 유형을 판단할 때 먼저 적용됩니다)</div>
+  <div class="kwg" id="myKw"></div>
+  <label class="rl mu"><input type="checkbox" id="byBreak" style="width:auto"> 위 기준 대신 엔터(빈 줄) 기준으로만 나누기</label>
+  </details>
+  <p class="msg" id="msg1" role="alert"></p>
+  <div class="row"><button class="pri" data-a="build">다음: 슬라이드 나누기</button><button data-a="sample">예시 대본 넣기</button></div>
+</section>
+
+<section class="step" id="s2" hidden>
+  <h1>이렇게 나눴어요</h1>
+  <p class="mu">카드마다 ‘나눈 이유’가 적혀 있어요. 문장 사이의 ✂ 버튼으로 나누고, ‘앞과 합치기’로 합치고, ‘삭제’로 지울 수 있습니다. 정보 유형은 키워드 규칙으로 제안한 값이며 직접 바꿀 수 있어요.</p>
+  <div class="cards" id="cards"></div>
+  <div class="row"><button data-a="go" data-v="1">이전</button><button data-a="rebuild">처음 자동 분석 결과로 되돌리기</button><button class="pri" data-a="go" data-v="3">다음: 디자인 고르기</button></div>
+</section>
+
+<section class="step" id="s3" hidden>
+  <h1>분위기를 골라 보세요</h1>
+  <div class="themes" id="themes"></div>
+  <h2>첫 슬라이드 미리보기</h2>
+  <div style="max-width:620px" id="themePrev"></div>
+  <div class="row"><button data-a="go" data-v="2">이전</button><button class="pri" data-a="go" data-v="4">다음: 편집하기</button></div>
+</section>
+
+<section class="step" id="s4" hidden>
+  <div class="ed">
+    <div><div class="thumbs" id="thumbs"></div><div class="row"><button data-a="add">+ 슬라이드 추가</button></div></div>
+    <div><div id="canvas"></div>
+      <div class="row"><button data-a="up">↑ 앞으로</button><button data-a="down">↓ 뒤로</button><button data-a="del">삭제</button></div></div>
+    <div class="panel">
+      <label>정보 유형</label><div class="row" style="margin:0" id="types"></div>
+      <label>레이아웃 <span class="mu" style="font-weight:400">(점선 = 추천)</span></label><div class="row" style="margin:0" id="lays"></div>
+      <p class="mu" id="vis" style="margin:6px 0 0;font-size:.85rem"></p>
+      <label for="fT">제목 <span class="mu" style="font-weight:400" id="tip"></span></label><input id="fT">
+      <label for="fB">본문</label><textarea id="fB" style="min-height:90px"></textarea>
+      <label for="fE">강조 문구</label><input id="fE">
+      <div class="ai"><b>✨ AI 도움</b> <span class="mu" style="font-size:.8rem">(선택 기능 · 눌렀을 때만 작동)</span>
+        <p class="why" id="aiSt">AI 연결 확인 중…</p>
+        <button id="aiBtn" data-a="ai" disabled>이 장 AI에게 제안받기</button><div id="aiOut"></div></div>
+      <label for="fN">발표 대본 <span class="mu" style="font-weight:400">(말로 하는 내용, 슬라이드에는 안 들어가요)</span></label><textarea id="fN" style="min-height:80px"></textarea>
+      <label>디자인 점검 (규칙 기반)</label><ul class="chk" id="checks"></ul>
+    </div>
+  </div>
+  <div class="row"><button data-a="go" data-v="3">이전</button><button class="pri" data-a="go" data-v="5">다음: 발표 보기</button></div>
+</section>
+
+<section class="step" id="s5" hidden>
+  <h1>완성! 발표처럼 넘겨 보세요</h1>
+  <div style="max-width:820px;margin:auto"><div id="play"></div>
+    <div class="pl"><button data-a="prev">◀</button><span id="cnt"></span><button data-a="next">▶</button></div></div>
+  <h2>결과 정리 (제목·본문·레이아웃·시각 자료)</h2>
+  <textarea id="out" readonly style="min-height:160px"></textarea>
+  <div class="row"><button data-a="go" data-v="4">이전</button><button class="pri" data-a="copy" id="cp">결과 복사</button></div>
+</section>
+
+<hr style="border:0;border-top:1px solid var(--bd);margin:26px 0 10px">
+<button data-a="test">자체 점검 실행</button>
+<ul class="chk" id="tests" style="margin-top:10px"></ul>
+</main>
+</div>
+
+<script>
+"use strict";
+const TYPES=["주장","근거","사례","비교","과정","수치","결론"];
+const LAYOUTS={
+ cover:{n:"표지",v:"주제를 상징하는 이미지 1장"},
+ headline:{n:"제목+핵심문장",v:"텍스트 중심 (아이콘 1개 정도)"},
+ evidence:{n:"근거 목록",v:"아이콘 목록"},
+ bignum:{n:"큰 숫자",v:"막대·원 그래프"},
+ compare:{n:"2열 비교",v:"비교표"},
+ steps:{n:"단계 흐름",v:"화살표 흐름도"},
+ case:{n:"사례 카드",v:"사진 또는 실제 장면 이미지"},
+ conclusion:{n:"결론 요약",v:"핵심 문장 중심 (이미지 최소화)"}};
+const REC={"주장":["headline","evidence"],"근거":["evidence","headline"],"사례":["case","headline"],"비교":["compare"],"과정":["steps"],"수치":["bignum","headline"],"결론":["conclusion","headline"]};
+const KW=[["결론",/결론|요약하면|마무리하면/],["과정",/단계|순서|먼저|다음으로|마지막으로/],["수치",/\d+\s*(%|명|개|점|배|원)|퍼센트/],["사례",/예를 들어|사례|실제로|지난/],["비교",/비교|반면|에 비해|차이/],["근거",/첫째|때문|근거|이유|연구|조사/],["주장",/해야|필요|주장|바람직/]];
+const LIM={title:20,body:120,sent:60,em:25};
+const NUM=/\d+(?:\.\d+)?\s*(?:%|명|개|점|배|원)?/;
+const THEMES=["산뜻한 민트","한밤 네이비","노란 포스터","숲속 초록"];
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function splitParagraphs(t){t=String(t).replace(/\r/g,"").trim();if(!t)return[];
+ let p=t.split(/\n\s*\n/).map(x=>x.replace(/\s*\n\s*/g," ").trim()).filter(Boolean);
+ if(p.length===1&&t.includes("\n"))p=t.split("\n").map(x=>x.trim()).filter(Boolean);return p;}
+function sents(t){return(String(t).match(/(?:[^.!?\n‘“]|[‘“][^’”\n]*[’”]|[‘“])+[.!?]?/g)||[]).map(x=>x.trim()).filter(Boolean);}
+function units(t){let u=sents(t);if(u.length<2)u=String(t).split(/,\s*/).map(x=>x.trim()).filter(Boolean);return u;}
+function suggestType(t){for(const k of TYPES){const w=MY[k];if(w&&w.some(x=>t.includes(x)))return k;}for(const[k,re]of KW)if(re.test(t))return k;return"";}
+function recommend(t){return REC[t]||[];}
+const INTRO=/안녕하세요|발표(를)? ?(해)?보겠습니다|발표하겠습니다|소개하겠습니다|^저는 [‘“'"]|^저는 [^.]{1,30}입니다/;
+const FILL=/감사합니다|경청/;
+const END=[[/되었습니다$/,"됨"],[/있습니다$/,"있음"],[/없습니다$/,"없음"],[/입니다$/,"임"],[/했습니다$/,"함"],[/합니다$/,"함"],[/됩니다$/,"됨"],[/습니다$/,"음"]];
+const TIP={"주장":"내 입장을 한 문장으로","근거":"왜 그런지 이유 한 줄","사례":"실제 장면·경험 한 줄","비교":"A와 B의 차이 한 줄","과정":"순서대로 짧게","수치":"기억할 숫자 하나","결론":"청중이 가져갈 한 문장"};
+const isIntro=t=>{const u=sents(t);return u.length>0&&u.every(x=>INTRO.test(x));};
+function cutAt(s,n){if(s.length<=n)return s;const k=s.lastIndexOf(" ",n);return s.slice(0,k>n*0.5?k:n)+"…";}
+function brief(x,n){const q=/\?$/.test(x.trim());let s=x.trim().replace(/[.!?]+$/,"").replace(/^(그리고|그런데|하지만|그래서|따라서|그렇다면|또한|한편|첫째|둘째|셋째|넷째|결론적으로|예를 들어)[,\s]+/,"");
+ if(!q)for(const[r,v]of END)if(r.test(s)){s=s.replace(r,v);break;}
+ return cutAt(s,n)+(q?"?":"");}
+function score(x,i){return(/\d/.test(x)?2:0)+(suggestType(x)?1:0)+(/[‘“]/.test(x)?1:0)+(/\?$/.test(x)?2:0)+(i===0?1:0)+(/때문|결과|중요|필요|결론/.test(x)?1:0);}
+/* 대본 -> 슬라이드 초안: 슬라이드 글(제목·핵심 문구)과 발표 대본(notes)을 분리한다 */
+function fromText(text,why){const notes=text.trim(),all=sents(notes);
+ if(isIntro(notes)){const m=notes.match(/[‘“]([^’”]{3,40})[’”]/)||notes.match(/[‘“]([^?]{3,40}\?)/),f=all.find(x=>/^안녕하세요|^저는 [^‘“]*입니다/.test(x))||"";
+  const sub=f.replace(/^안녕하세요[,\s]*/,"").replace(/입니다[.!?]*$/,"").trim();
+  return{type:"",auto:false,layout:"cover",title:cutAt(m?m[1].trim():brief(all[0]||"",24),24),body:sub||"발표자 이름",emphasis:"",notes,why};}
+ const body=all.filter(x=>!FILL.test(x)),ranked=body.map((x,i)=>({x,i,s:score(x,i)})),q=body.find(x=>/\?$/.test(x)),
+  key=ranked.reduce((a,b)=>b.s>a.s?b:a,{x:"",s:-1}).x,src=q||key;
+ const pick=ranked.slice().sort((a,b)=>b.s-a.s||a.i-b.i).slice(0,3).sort((a,b)=>a.i-b.i).map(o=>o.x).filter(x=>x!==src);
+ const c0=src.split(/,\s*/)[0],first=c0.length>=8?c0:src,ty=suggestType(notes);
+ return{type:ty,auto:!!ty,layout:"",title:brief(q?src:first,LIM.title-(q?2:1)),body:(pick.length?pick:[src]).map(x=>brief(x,40)).filter(Boolean).join("\n"),emphasis:"",notes,why};}
+const STARTS=/^(첫째|둘째|셋째|넷째|결론적으로|결론|마무리|예를 들어|한편|반면에|이제|그럼)/;
+function splitSmart(text){const u=sents(String(text).replace(/\s*\n\s*/g," ")),out=[];let cur=[],gt="",why="대본의 시작";
+ const sigOf=x=>{const m=CFG.sig&&x.match(STARTS);return m?m[0]:(CFG.mySig.find(w=>x.startsWith(w))||"");};
+ let ci=false;
+ for(const x of u){const isI=INTRO.test(x),t=isI?"":suggestType(x);let r="";
+  if(cur.length){const len=cur.join(" ").length+x.length+1,k=gt==="과정"?1.5:1,sg=sigOf(x);
+   if(ci!==isI)r=ci?"발표 소개가 끝나고 본론이 시작돼서 나눔":"발표 소개 문장이라 따로 나눔";
+   else if(sg)r="‘"+sg+"’(으)로 시작해서 새 주제로 봄";
+   else if(CFG.type&&t&&gt&&t!==gt)r="역할이 "+gt+"에서 "+t+"(으)로 바뀜";
+   else if(CFG.len&&len>CFG.maxC*k)r="여기에 더하면 말하는 시간이 약 "+secs(len)+"초가 돼서 기준("+secs(CFG.maxC)+"초)을 넘어 나눔";
+   else if(CFG.len&&cur.length>=CFG.maxS*k)r="문장이 "+cur.length+"개 쌓여서 기준("+CFG.maxS+"개)에 맞춰 나눔";}
+  if(r){out.push({body:cur.join(" "),why});cur=[];gt="";why=r;}
+  cur.push(x);if(cur.length===1)ci=isI;if(!gt&&t)gt=t;}
+ if(cur.length)out.push({body:cur.join(" "),why});
+ if(CFG.min)for(let i=out.length-1;i>0;i--)if(out[i].body.length<CFG.minC&&!isIntro(out[i].body)&&!isIntro(out[i-1].body)){out[i-1].body+=" "+out[i].body;out[i-1].why+=" (짧은 장 합침)";out.splice(i,1);}
+ return out;}
+function makeTitle(t){const f=(sents(t)[0]||"").replace(/[.!?]+$/,"");return f.length>LIM.title?f.slice(0,LIM.title)+"…":f;}
+function check(s){const r=[],a=(l,m)=>r.push({l,m}),t=s.title.trim(),b=s.body.trim(),e=s.emphasis.trim();
+ if(!t)a("error","제목이 비어 있습니다.");else if(t.length>LIM.title)a("warn","제목이 "+t.length+"자예요. "+LIM.title+"자 이하로 줄여 보세요.");
+ if(!b)a("error","본문이 비어 있습니다.");else{
+  if(b.length>LIM.body)a("warn","본문이 "+b.length+"자예요. "+LIM.body+"자 이하를 권장합니다.");
+  const n=sents(b).filter(x=>x.length>LIM.sent).length;if(n)a("warn","긴 문장이 "+n+"개 있어요. "+LIM.sent+"자 안으로 나눠 보세요.");}
+ if(s.notes&&b.length>40&&b.length>=s.notes.trim().length*0.8)a("warn","슬라이드 글이 대본과 거의 같아요. 슬라이드에는 핵심만 남기고 나머지는 말로 하세요.");
+ if(e.length>LIM.em)a("warn","강조 문구가 "+e.length+"자예요. "+LIM.em+"자 이하가 좋아요.");
+ if(!e)a("info","강조 문구가 없어요. 청중이 기억할 한 줄을 정해 보세요.");
+ if(!s.type)a("info","정보 유형을 고르면 레이아웃 추천을 받을 수 있어요.");
+ if(s.layout==="bignum"&&!NUM.test(e+" "+b))a("warn","큰 숫자 레이아웃인데 숫자가 없어요.");
+ if((s.layout==="compare"||s.layout==="steps")&&units(b).length<2)a("warn","이 레이아웃은 나눌 항목이 2개 이상 필요해요.");
+ return r;}
+function renderSlide(s){const t=esc(s.title.trim()||"(제목을 입력하세요)"),em=s.emphasis.trim()?`<div class="em">${esc(s.emphasis)}</div>`:"";
+ switch(s.layout){
+ case"cover":return`<div class="cv"><h3>${t}</h3><p>${esc(s.body)}</p></div>`;
+ case"evidence":return`<h3>${t}</h3><ul>${sents(s.body).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${em}`;
+ case"bignum":{const m=(s.emphasis+" "+s.body).match(NUM);return`<h3>${t}</h3><div class="big">${m?esc(m[0].trim()):"?"}</div>${em}<small>${esc(s.body)}</small>`;}
+ case"compare":{const a=sents(s.body),h=Math.ceil(a.length/2);return`<h3>${t}</h3><div class="cols"><div><b>A</b>${esc(a.slice(0,h).join(" "))}</div><div><b>B</b>${esc(a.slice(h).join(" "))}</div></div>${em}`;}
+ case"steps":return`<h3>${t}</h3><div class="flow">${units(s.body).map((x,i)=>`<div class="st"><b>${i+1}단계</b>${esc(x)}</div>`).join('<span class="arr">▶</span>')}</div>${em}`;
+ case"case":return`<h3>${t}</h3><div class="img">[사진·장면 자리]</div><p>${esc(s.body)}</p>${em}`;
+ case"conclusion":return`<h3>${t}</h3>${em}<ul>${sents(s.body).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`;
+ default:return`<h3>${t}</h3><ul>${sents(s.body).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${em}`;}}
+function summarize(l){return l.map((s,i)=>{const L=LAYOUTS[s.layout];return`[슬라이드 ${i+1}]\n제목: ${s.title}\n본문: ${s.body}\n강조: ${s.emphasis||"(없음)"}\n유형: ${s.type||"(미선택)"}\n레이아웃: ${L?L.n:"(미선택)"}\n시각 자료: ${L?L.v:"(미정)"}\n발표 대본: ${s.notes||"(없음)"}${s.visualNote?"\nAI 제안 시각 자료: "+s.visualNote:""}${s.aiUsed?"\n※ AI 제안을 반영한 슬라이드":""}`;}).join("\n\n");}
+const slideEl=s=>`<div class="slide">${renderSlide(s)}</div>`;
+
+let slides=[],sel=0,step=1,theme=0,cur=0;
+const secs=n=>Math.round(n/5.5);
+const DEF={sig:true,mySig:[],type:true,len:true,maxC:Math.round(45*5.5),maxS:5,min:true,minC:30};
+let CFG=Object.assign({},DEF),MY={};
+function readCfg(){const w=s=>s.split(",").map(x=>x.trim()).filter(Boolean);
+ CFG={sig:$("rSig").checked,mySig:w($("rMySig").value),type:$("rType").checked,len:$("rLen").checked,maxC:Math.round((+$("rSec").value||45)*5.5),maxS:+$("rSn").value||5,min:$("rMin").checked,minC:+$("rMinC").value||0};
+ MY={};document.querySelectorAll("[data-ty]").forEach(i=>{MY[i.dataset.ty]=w(i.value);});}
+const $=id=>document.getElementById(id);
+const blank=()=>({type:"",auto:false,layout:"headline",title:"",body:"",emphasis:"",notes:""});
+
+function build(){readCfg();const raw=$("script").value,p=$("byBreak").checked?splitParagraphs(raw).map(b=>({body:b,why:"엔터(빈 줄) 기준으로 나눔"})):splitSmart(raw);
+ if(!p.length){$("msg1").textContent="대본이 비어 있어요. 대본을 붙여 넣거나 예시 대본을 눌러 주세요.";return false;}
+ $("msg1").textContent="";
+ slides=p.map(o=>fromText(o.body,o.why));
+ sel=0;cur=0;return true;}
+function applyAuto(){slides.forEach(s=>{if(!s.layout)s.layout=recommend(s.type)[0]||"headline";});}
+function go(n){if(n>1&&!slides.length)return;if(n>=3)applyAuto();step=n;sel=Math.min(sel,slides.length-1);
+ document.querySelectorAll(".step").forEach(e=>e.hidden=e.id!=="s"+n);
+ $("stepper").innerHTML=["대본","나누기","디자인","편집","완성"].map((t,i)=>`<button class="sb ${i+1===n?"on":i+1<n?"done":""}" data-a="go" data-v="${i+1}">${i+1}. ${t}</button>`).join("");
+ if(n===2)renderCards();if(n===3)renderThemes();if(n===4)renderEditor();if(n===5){cur=0;renderPlay();}
+ window.scrollTo(0,0);}
+function renderCards(){$("cards").innerHTML=slides.map((s,i)=>`<div class="pc"><b>슬라이드 ${i+1}</b><p class="why">나눈 이유: ${esc(s.why||"직접 추가")}<br>분량: ${(s.notes||s.body).length}자 · 말하는 시간 약 ${secs((s.notes||s.body).length)}초 (글자 수로 계산한 추정치)</p><p class="why"><b>슬라이드 제목 초안</b>: ${esc(s.title)}</p>${sents(s.notes||s.body).map((x,k)=>(k?`<button class="cut" data-a="cut" data-i="${i}" data-k="${k}">✂ 여기서 나누기</button>`:"")+`<p class="sn">${esc(x)}</p>`).join("")}
+ <div class="row"><select data-a="type" data-i="${i}" aria-label="슬라이드 ${i+1} 정보 유형"><option value="">유형 선택 안 함</option>${TYPES.map(t=>`<option ${s.type===t?"selected":""}>${t}</option>`).join("")}</select></div>
+ <div class="row">${i?`<button data-a="merge" data-i="${i}">앞과 합치기</button>`:""}<button data-a="rm" data-i="${i}">삭제</button></div>
+ <small class="mu">${s.auto?"유형: 키워드 규칙으로 제안":""}</small></div>`).join("");}
+function renderThemes(){$("themes").innerHTML=THEMES.map((n,i)=>`<button class="th-b ${i===theme?"on":""}" data-a="theme" data-v="${i}"><div class="th${i}"><div class="slide" style="padding:8%"><h3>${n}</h3></div></div>${n}</button>`).join("");
+ $("themePrev").innerHTML=slideEl(slides[0]);$("app").className="th"+theme;}
+function renderEditor(){const s=slides[sel];if(!s)return;
+ $("types").innerHTML=TYPES.map(t=>`<button class="pill ${s.type===t?"on":""}" data-a="settype" data-v="${t}">${t}</button>`).join("");
+ const rec=recommend(s.type),all=rec.concat(Object.keys(LAYOUTS).filter(k=>!rec.includes(k)));
+ $("lays").innerHTML=all.map(k=>`<button class="pill ${rec.includes(k)?"rec":""} ${s.layout===k?"on":""}" data-a="setlay" data-v="${k}">${rec.includes(k)?"★ ":""}${LAYOUTS[k].n}</button>`).join("");
+ $("fT").value=s.title;$("fB").value=s.body;$("fE").value=s.emphasis;$("fN").value=s.notes||"";$("tip").textContent=TIP[s.type]?"· 이 장의 한 줄: "+TIP[s.type]:"";live();renderAi();}
+function live(){const s=slides[sel];if(!s)return;
+ $("canvas").innerHTML=slideEl(s);$("vis").textContent=LAYOUTS[s.layout]?"추천 시각 자료: "+LAYOUTS[s.layout].v:"";
+ const c=check(s);$("checks").innerHTML=c.length?c.map(x=>`<li class="${x.l}">${{error:"오류",warn:"주의",info:"참고"}[x.l]} · ${esc(x.m)}</li>`).join(""):'<li class="ok">점검에 걸리는 항목이 없어요.</li>';
+ $("thumbs").innerHTML=slides.map((x,i)=>`<button class="tb ${i===sel?"on":""}" data-a="pick" data-v="${i}"><i>${i+1}</i>${slideEl(x)}</button>`).join("");}
+function renderPlay(){$("play").innerHTML=slideEl(slides[cur])+'<p class="why" style="margin-top:10px"><b>발표 대본</b>: '+esc(slides[cur].notes||"")+'</p>';$("cnt").textContent=(cur+1)+" / "+slides.length;$("out").value=summarize(slides);}
+
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b||b.tagName==="SELECT")return;const a=b.dataset.a,v=b.dataset.v,s=slides[sel];
+ if(a==="build"){if(build())go(2);}
+ else if(a==="sample"){$("script").value=SAMPLE;if(build())go(2);}
+ else if(a==="go")go(+v);
+ else if(a==="theme"){theme=+v;renderThemes();}
+ else if(a==="pick"){sel=+v;renderEditor();}
+ else if(a==="settype"){s.type=v;s.auto=false;s.layout=recommend(v)[0]||s.layout;renderEditor();}
+ else if(a==="setlay"){s.layout=v;renderEditor();}
+ else if(a==="add"){slides.push(blank());sel=slides.length-1;renderEditor();}
+ else if(a==="del"){if(slides.length>1){slides.splice(sel,1);sel=Math.max(0,sel-1);renderEditor();}}
+ else if(a==="up"&&sel>0){[slides[sel-1],slides[sel]]=[slides[sel],slides[sel-1]];sel--;renderEditor();}
+ else if(a==="down"&&sel<slides.length-1){[slides[sel+1],slides[sel]]=[slides[sel],slides[sel+1]];sel++;renderEditor();}
+ else if(a==="prev"){cur=Math.max(0,cur-1);renderPlay();}
+ else if(a==="next"){cur=Math.min(slides.length-1,cur+1);renderPlay();}
+ else if(a==="copy"){navigator.clipboard.writeText($("out").value).then(()=>$("cp").textContent="복사됨",()=>{$("out").select();$("cp").textContent="직접 복사해 주세요";});}
+ else if(a==="cut"){const i=+b.dataset.i,k=+b.dataset.k,u=sents(slides[i].notes||slides[i].body),mkS=(arr,w)=>fromText(arr.join(" "),w);
+  slides.splice(i,1,mkS(u.slice(0,k),slides[i].why),mkS(u.slice(k),"직접 나눈 곳"));renderCards();}
+ else if(a==="merge"){const i=+b.dataset.i,p=slides[i-1],x=(p.notes||p.body)+" "+(slides[i].notes||slides[i].body);slides.splice(i-1,2,fromText(x,(p.why||"")+" (합침)"));renderCards();}
+ else if(a==="rm"){if(slides.length>1){slides.splice(+b.dataset.i,1);sel=0;renderCards();}}
+ else if(a==="rebuild"){if(build())renderCards();}
+ else if(a==="ai")aiAsk();
+ else if(a==="aiApply"&&s&&s.ai){s.title=s.ai.title;s.body=s.ai.bullets.join("\n");s.emphasis=s.ai.emphasis;s.visualNote=s.ai.visual;s.aiUsed=true;renderEditor();}
+ else if(a==="aiTitle"&&s&&s.ai){s.title=s.ai.title;s.aiUsed=true;renderEditor();}
+ else if(a==="aiDrop"&&s){s.ai=null;renderAi();}
+ else if(a==="test")runTests();});
+document.addEventListener("change",e=>{const t=e.target;if(t.dataset.a==="type"){const s=slides[+t.dataset.i];s.type=t.value;s.auto=false;s.layout="";}});
+$("fT").addEventListener("input",e=>{slides[sel].title=e.target.value;live();});
+$("fB").addEventListener("input",e=>{slides[sel].body=e.target.value;live();});
+$("fE").addEventListener("input",e=>{slides[sel].emphasis=e.target.value;live();});
+$("fN").addEventListener("input",e=>{slides[sel].notes=e.target.value;live();});
+document.addEventListener("keydown",e=>{if(step!==5)return;if(e.key==="ArrowRight"){cur=Math.min(slides.length-1,cur+1);renderPlay();}if(e.key==="ArrowLeft"){cur=Math.max(0,cur-1);renderPlay();}});
+
+/* ---------- AI 도움 (선택 기능: 학생이 버튼을 눌렀을 때만 호출, 결과는 제안으로만 표시) ---------- */
+let AI=null,aiBusy=false;
+function aiInit(){try{if(window.claude&&claude.use)claude.use("sample").then(s=>{AI=s;aiUi();},()=>{AI=null;aiUi();});}catch(_){AI=null;}}
+function aiUi(){$("aiBtn").disabled=!AI||aiBusy;$("aiSt").textContent=AI?"AI 제안은 참고용이에요. 적용하기 전에 대본과 비교해서 직접 확인하세요.":"이 화면에서는 AI를 쓸 수 없어요. 규칙 기반 기능은 그대로 쓸 수 있어요.";}
+function aiPrompt(s){return `너는 고등학생의 발표 PPT 제작을 돕는 조교야. 아래 발표 대본 한 문단을 슬라이드 한 장으로 바꾸는 제안을 해 줘.
+규칙:
+- 대본에 없는 사실이나 숫자를 만들지 마. 숫자는 대본에 있는 것만 써.
+- title: 이 장의 한 줄 메시지, 공백 포함 20자 이내.
+- bullets: 핵심 항목 1~3개, 각 30자 이내, 개조식(~함, ~임, 명사형)으로.
+- emphasis: 청중이 기억할 한 줄, 25자 이내. 필요 없으면 빈 문자열.
+- visual: 이 장에 어울리는 시각 자료 제안 한 줄(어떤 사진, 그래프, 도표인지).
+- reason: 왜 이렇게 요약했는지 한 문장.
+- 한국어로 쓰고, 설명이나 코드블록 없이 아래 JSON 한 개만 출력해.
+{"title":"","bullets":[""],"emphasis":"","visual":"","reason":""}
+
+정보 유형(학생이 고른 값): ${s.type||"미선택"}
+레이아웃: ${LAYOUTS[s.layout]?LAYOUTS[s.layout].n:"미선택"}
+발표 대본:
+"""
+${s.notes||s.body}
+"""`;}
+function normAi(r){if(!r||typeof r!=="object")throw new Error("bad");const S=x=>String(x==null?"":x).trim();
+ return{title:S(r.title).slice(0,40),bullets:(Array.isArray(r.bullets)?r.bullets:[]).slice(0,3).map(S).filter(Boolean),emphasis:S(r.emphasis).slice(0,40),visual:S(r.visual),reason:S(r.reason)};}
+function aiNumCheck(a,notes){const nums=t=>t.match(/\d+(?:\.\d+)?/g)||[],have=nums(notes);return[...new Set(nums([a.title,a.bullets.join(" "),a.emphasis].join(" ")).filter(n=>!have.includes(n)))];}
+async function aiAsk(){const s=slides[sel];if(!AI||aiBusy||!s)return;aiBusy=true;aiUi();
+ $("aiOut").innerHTML='<p class="why">AI가 대본을 읽는 중… (몇 초에서 1분 정도 걸릴 수 있어요)</p>';
+ try{const r=await AI.json(aiPrompt(s),{modelTier:"default"});s.ai=normAi(r);}
+ catch(e){const c=e&&e.code;s.ai=null;$("aiOut").innerHTML='<p class="why">'+esc(c==="not_granted"?"AI 사용을 허용하지 않았어요. 규칙 기반 기능은 그대로 쓸 수 있어요.":c==="rate_limited"?"요청이 너무 많아요. 잠시 뒤에 다시 눌러 주세요.":"AI 제안을 받지 못했어요. 다시 눌러 보거나 직접 고쳐 주세요.")+'</p>';aiBusy=false;aiUi();return;}
+ aiBusy=false;aiUi();if(slides[sel]===s)renderAi();}
+function renderAi(){const s=slides[sel],a=s&&s.ai,box=$("aiOut");if(!a){if(!aiBusy)box.innerHTML="";return;}
+ const bad=aiNumCheck(a,s.notes||s.body);
+ box.innerHTML=`<div class="aib"><b>AI 제안</b> <span class="mu">(적용 전에 대본과 비교해 확인하세요)</span>
+ <p class="sn"><b>제목</b> ${esc(a.title)}</p><ul>${a.bullets.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+ <p class="sn"><b>강조</b> ${esc(a.emphasis||"(없음)")}</p><p class="sn"><b>시각 자료</b> ${esc(a.visual)}</p><p class="why">${esc(a.reason)}</p>
+ ${bad.length?`<p class="why" style="color:var(--er)">주의: 대본에 없는 숫자가 들어 있어요 (${esc(bad.join(", "))}). 사실과 다르면 적용하지 마세요.</p>`:""}
+ <div class="row"><button class="pri" data-a="aiApply">전부 적용</button><button data-a="aiTitle">제목만 적용</button><button data-a="aiDrop">닫기</button></div></div>`;}
+
+const SAMPLE=`우리 학교는 수업 시간 스마트폰 사용 규칙을 새로 정해야 합니다. 지금의 전면 금지 방식은 학생과 교사 모두에게 불만이 큽니다.
+
+첫째, 스마트폰은 학습 도구가 되기도 합니다. 사전 검색, 자료 촬영, 퀴즈 앱처럼 수업에 도움이 되는 활용이 이미 많기 때문입니다.
+
+우리 반 30명을 설문한 결과 24명이 수업 중 몰래 사용한 적이 있다고 답했습니다. 전체의 80%가 규칙을 지키기 어렵다고 느낀다는 뜻입니다.
+
+예를 들어 지난달 과학 시간에는 모둠이 식물 사진을 찍어 바로 정리했고, 보고서 완성 시간이 짧아졌습니다.
+
+학교 규칙은 금지형과 허용형을 비교해 볼 수 있습니다. 금지형은 관리가 쉽지만 반발이 크고, 조건부 허용형은 관리가 어렵지만 자율성이 높습니다.
+
+새 규칙은 세 단계로 운영합니다. 먼저 교사가 활용 가능 시간을 안내하고, 다음으로 학생이 사용 목적을 밝히며, 마지막으로 수업이 끝나면 점검표를 작성합니다.
+
+결론적으로 전면 금지보다 조건부 허용이 더 현실적입니다. 함께 만든 규칙이 더 잘 지켜질 것입니다.`;
+
+function runTests(){const R=[],t=(n,f)=>{try{R.push([n,f()===true]);}catch(x){R.push([n+" (예외 "+x.message+")",false]);}};
+ const sc=CFG,sm=MY;CFG=Object.assign({},DEF);MY={};
+ const run=(o,s)=>{const b=CFG;CFG=Object.assign({},DEF,o);const n=splitSmart(s).length;CFG=b;return n;};
+ const mk=o=>Object.assign({type:"",layout:"",title:"제목",body:"본문입니다.",emphasis:""},o||{}),P=splitParagraphs(SAMPLE),W=["주장","근거","수치","사례","비교","과정","결론"];
+ t("예시 대본이 7문단으로 나뉜다",()=>P.length===7);
+ t("빈 입력은 0문단",()=>splitParagraphs(" \n ").length===0);
+ t("유형 제안이 예시와 일치한다",()=>P.every((p,i)=>suggestType(p)===W[i]));
+ t("모든 유형에 실제 레이아웃 추천이 있다",()=>TYPES.every(y=>recommend(y).length&&recommend(y).every(k=>LAYOUTS[k])));
+ t("빈 제목은 오류",()=>check(mk({title:" "})).some(c=>c.l==="error"));
+ t("본문 120자 초과는 주의",()=>check(mk({body:"가".repeat(121)})).some(c=>c.m.includes("121자")));
+ t("60자 넘는 문장은 주의",()=>check(mk({body:"가".repeat(61)+"."})).some(c=>c.m.includes("긴 문장")));
+ t("태그가 이스케이프된다",()=>!renderSlide(mk({title:"<img src=x>"})).includes("<img"));
+ t("모든 레이아웃이 그려진다",()=>Object.keys(LAYOUTS).concat([""]).every(k=>renderSlide(mk({layout:k,body:"하나. 둘. 셋.",emphasis:"80%"})).length>0));
+ t("제목 수정이 미리보기에 반영된다",()=>{const s=mk();s.title="새 제목";return renderSlide(s).includes("새 제목");});
+ t("단계 흐름은 쉼표로도 나눈다",()=>(renderSlide(mk({layout:"steps",body:"가, 나, 다."})).match(/단계/g)||[]).length===3);
+ t("자동 분석: 줄바꿈이 없어도 예시가 7장으로 나뉜다",()=>splitSmart(SAMPLE.replace(/\n+/g," ")).length===7);
+ t("자동 분석: 줄바꿈이 있어도 같은 7장",()=>splitSmart(SAMPLE).length===7);
+ t("자동 분석: 모든 장에 나눈 이유가 있다",()=>splitSmart(SAMPLE).every(o=>o.why));
+ t("자동 분석: 긴 글은 길이로 나눈다",()=>splitSmart("가나다라 마바사 아자차카 타파하 거너더러 머버서 어저처 커터퍼 허고노도 로모보소 오조초코 토포호 구누두루. ".repeat(6)).length>1);
+ t("자동 분석: 빈 입력은 0장",()=>splitSmart("  ").length===0);
+ t("기준표: 신호어를 켜면 ‘첫째’에서 나누고 끄면 나누지 않는다",()=>run({min:false},"오늘은 날씨가 좋습니다. 첫째, 산책을 합니다.")===2&&run({sig:false,min:false},"오늘은 날씨가 좋습니다. 첫째, 산책을 합니다.")===1);
+ t("기준표: 나만의 신호어가 적용된다",()=>run({min:false,mySig:["정리하면"]},"가나다입니다. 정리하면 라마바입니다.")===2&&run({min:false},"가나다입니다. 정리하면 라마바입니다.")===1);
+ t("기준표: 시간 기준을 바꾸면 나뉘는 장 수가 달라진다",()=>{const s=("가".repeat(40)+". ").repeat(6);return run({min:false,maxC:5000,maxS:99},s)===1&&run({min:false,maxC:100,maxS:99},s)>1;});
+ t("기준표: 짧은 장 합치기를 켜면 합치고 끄면 그대로 둔다",()=>run({min:true},"오늘은 날씨가 좋습니다. 첫째, 산책을 합니다.")===1&&run({min:false},"오늘은 날씨가 좋습니다. 첫째, 산책을 합니다.")===2);
+ t("기준표: 나만의 유형 키워드가 먼저 적용된다",()=>{MY={"수치":["응답률"]};const r=suggestType("응답률이 높습니다.")==="수치";MY={};return r;});
+ const SS="안녕하세요 저는 20811김호은입니다. 저는 ‘예술은 아름다움만 추구해야 하는가?’에 대해 교과서 내용을 중심으로 발표해보겠습니다. 교과서에는 살아 있는 금붕어를 링거병에 넣어 전시한 설치미술 작품이 소개되어 있습니다. 어떤 사람들은 예술이라고 말하지만, 다른 사람들은 동물 학대라고 주장합니다. 같은 작품을 두고도 이렇게 의견이 나뉘는 이유는 예술의 아름다움과 윤리적 가치가 충돌하기 때문입니다. 그렇다면 예술에서 아름다움과 윤리 가운데 무엇이 더 중요할까요?";
+ t("초안: 발표 소개는 표지로 따로 나뉘고 본론은 그 뒤에 온다",()=>{const g=splitSmart(SS);return g.length>=3&&isIntro(g[0].body)&&!isIntro(g[1].body);});
+ t("표지: 주제가 제목, 이름이 부제로 들어간다",()=>{const s=fromText(splitSmart(SS)[0].body,"");return s.layout==="cover"&&s.title.includes("예술은 아름다움만 추구해야 하는가")&&s.body==="저는 20811김호은";});
+ t("표지: 따옴표가 닫히지 않아도 주제를 찾는다",()=>fromText("안녕하세요 저는 20811김호은입니다. 저는 ‘예술은 아름다움만 추구해야 하는가? 에 대해 교과서 내용을 중심으로 발표해보겠습니다.","").title.includes("예술은 아름다움만"));
+ t("초안: 슬라이드 글은 대본보다 짧고 ‘~습니다’ 말투가 없다",()=>splitSmart(SS).slice(1).every(o=>{const s=fromText(o.body,"");return s.body.length<s.notes.length&&!/습니다/.test(s.body);}));
+ t("초안: 대본 원문은 발표 대본(notes)에 그대로 보존된다",()=>{const o=splitSmart(SS)[1];return fromText(o.body,"").notes===o.body;});
+ t("초안: 질문 문장이 있으면 제목으로 쓴다",()=>fromText("예술은 중요합니다. 그렇다면 예술은 무엇일까요?","").title.endsWith("?"));
+ t("AI 도움: 대본에 없는 숫자를 찾아낸다",()=>{const r=aiNumCheck({title:"",bullets:["24명 응답"],emphasis:"80%"},"30명 중 24명이 응답했습니다.");return r.length===1&&r[0]==="80";});
+ t("AI 도움: 응답 형식이 이상해도 안전하게 정리된다",()=>{const a=normAi({title:"가",bullets:"x"});return a.title==="가"&&Array.isArray(a.bullets)&&a.bullets.length===0&&a.emphasis==="";});
+ t("AI 도움: 요청문에 대본 원문과 JSON 형식 지시가 들어간다",()=>{const p=aiPrompt(mk({notes:"원문 테스트 문장",type:"근거"}));return p.includes("원문 테스트 문장")&&p.includes("JSON")&&p.includes("근거");});
+ t("AI 도움: AI가 없어도 규칙 기반 초안이 만들어진다",()=>fromText("예술은 중요합니다. 그렇다면 예술은 무엇일까요?","").title.length>0);
+ CFG=sc;MY=sm;
+ $("tests").innerHTML=R.map(([n,o])=>`<li class="${o?"pass":"fail"}">${o?"통과":"실패"} · ${esc(n)}</li>`).join("")+`<li><b>${R.filter(r=>r[1]).length} / ${R.length} 통과</b></li>`;}
+$("myKw").innerHTML=TYPES.map(t=>`<label>${t}<input data-ty="${t}" placeholder="예: 단어1, 단어2"></label>`).join("");
+aiInit();
+go(1);
+</script>
+</body>
+</html>
